@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 software/backend/data/
 .DS_Store
+RF_ESP32_Dataset-v*.zip
