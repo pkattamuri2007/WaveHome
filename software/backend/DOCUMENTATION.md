@@ -79,4 +79,4 @@ Check `software/backend/data/<session>/<node_id>.csv` for stored packets.
 
 ### Notes
 
-The replayer converts complex CSI samples into interleaved signed integer real/imaginary values compatible with schema version 0.1. The replay rate is configurable and does not represent the original measurement sampling frequency. Activity labels are available in the source dataset but are not included in the ingestion packet schema.
+The replayer converts complex CSI samples into interleaved signed integer imaginary/real values (imaginary first, the ESP32 order used by `fake_sender.py` and `hardware/CSI_OUTPUT_FORMAT.md`) compatible with schema version 0.1. The replay rate is configurable and does not represent the original measurement sampling frequency. Activity labels are available in the source dataset but are not included in the ingestion packet schema.
