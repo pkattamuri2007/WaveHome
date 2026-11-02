@@ -149,7 +149,7 @@ def main() -> None:
             if remaining > 0:
                 time.sleep(remaining)
         print(f'Finished: accepted {sent}/{count} packets')
-        print('Node stats:', client.get(args.url.rstrip('/') + '/nodes').json())
+        print('Node stats:', client.get(args.url.rstrip('/') + '/stats').json()['nodes'])
 
 
 if __name__ == '__main__':
