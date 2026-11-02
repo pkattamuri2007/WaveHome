@@ -6,6 +6,8 @@ The csi column holds the raw interleaved values separated by spaces.
 """
 
 import csv
+from collections import deque
+from uuid import uuid4
 import re
 import threading
 import time
@@ -44,6 +46,45 @@ class Store:
     nodes: dict[str, NodeStats] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
+    recent_capacity: int = 20000
+    session_id: str = field(default_factory=lambda: uuid4().hex)
+    _cursor: int = 0
+    _recent: deque = field(default_factory=deque)
+
+    def __post_init__(self):
+        if self.recent_capacity < 1:
+            raise ValueError("recent_capacity must be positive")
+        self._recent = deque(maxlen=self.recent_capacity)
+
+    def health_snapshot(self):
+        with self._lock:
+            return {"session": self.session, "session_id": self.session_id}
+
+    def node_snapshot(self):
+        with self._lock:
+            return {
+                node: {**vars(s), "loss_pct": round(100 * s.dropped / (s.packets + s.dropped), 2)}
+                for node, s in self.nodes.items()
+            }
+
+    def recent(self, node_id=None, after_cursor=0, limit=200, session_id=None):
+        with self._lock:
+            reset = session_id is not None and session_id != self.session_id
+            cursor = 0 if reset else after_cursor
+            if cursor > self._cursor:
+                raise ValueError("Cursor is ahead of this server; supply the prior session_id")
+            oldest = self._recent[0]["cursor"] if self._recent else self._cursor + 1
+            gap = cursor > 0 and cursor < oldest - 1
+            rows = [r for r in self._recent
+                    if r["cursor"] > cursor and (node_id is None or r["packet"]["node_id"] == node_id)]
+            selected = rows[:limit]
+            # Advance across other nodes, but never skip an unreturned matching row.
+            next_cursor = selected[-1]["cursor"] if len(rows) > limit else self._cursor
+            return {"session": self.session, "session_id": self.session_id,
+                    "reset": reset, "gap": gap, "oldest_cursor": oldest,
+                    "latest_cursor": self._cursor, "next_cursor": next_cursor, "has_more": len(rows) > limit,
+                    "packets": selected}
+
     @property
     def session_dir(self) -> Path:
         return self.data_dir / _safe(self.session)
@@ -52,6 +93,8 @@ class Store:
         with self._lock:
             self.session = _safe(name) if name else time.strftime("%Y%m%d-%H%M%S")
             self.nodes = {}
+            self.session_id = uuid4().hex
+            self._recent.clear()
         return self.session
 
     def add(self, packets: list[CSIPacket]) -> None:
@@ -64,6 +107,10 @@ class Store:
                 self._update_stats(p, now_us)
             for node_id, rows in by_node.items():
                 self._append_csv(node_id, rows, now_us)
+            for p in packets:
+                self._cursor += 1
+                self._recent.append({"cursor": self._cursor, "ts_server_us": now_us,
+                                     "packet": p.model_dump()})
 
     def _update_stats(self, p: CSIPacket, now_us: int) -> None:
         s = self.nodes.setdefault(p.node_id, NodeStats())

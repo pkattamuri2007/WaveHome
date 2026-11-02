@@ -15,3 +15,10 @@ WiFi sensing for presence, motion, and zone-level tracking using Channel State I
 ## Quick start (no hardware needed)
 
 See [`software/backend/DOCUMENTATION.md`](software/backend/DOCUMENTATION.md) to run the API and stream fake CSI into it.
+
+## Live amplitude and motion monitoring
+
+See [dashboard setup and demo](software/dashboard/DOCUMENTATION.md) for the
+Streamlit dashboard, intentional empty-room calibration, recent-packet API,
+synthetic demonstration, replay instructions, and tests.
+See [processing notes](software/processing/DOCUMENTATION.md) for detector details.

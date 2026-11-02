@@ -1,6 +1,9 @@
 .venv/
 __pycache__/
 .pytest_cache/
+.idea/
+*.zip
 software/backend/data/
+
 .DS_Store
-RF_ESP32_Dataset-v*.zip
+.venv311/

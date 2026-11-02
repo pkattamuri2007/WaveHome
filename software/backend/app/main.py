@@ -7,7 +7,7 @@ Run from software/backend:
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 from .schema import SCHEMA_VERSION, CSIPacket
@@ -25,7 +25,7 @@ class SessionRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "schema_version": SCHEMA_VERSION, "session": store.session}
+    return {"status": "ok", "schema_version": SCHEMA_VERSION, **store.health_snapshot()}
 
 
 @app.post("/ingest")
@@ -45,13 +45,24 @@ def ingest_batch(packets: list[CSIPacket]):
 @app.get("/nodes")
 def nodes():
     """Per-node health: packet counts, dropped packets (from seq gaps), last RSSI."""
-    return {
-        node_id: {**vars(s), "loss_pct": round(100 * s.dropped / (s.packets + s.dropped), 2)}
-        for node_id, s in store.nodes.items()
-    }
+    return store.node_snapshot()
 
 
 @app.post("/session")
 def new_session(req: SessionRequest):
     """Start a new recording session (new folder of CSVs, fresh node stats)."""
     return {"session": store.start_session(req.name)}
+
+
+@app.get("/packets/recent")
+def recent_packets(
+    node_id: str | None = Query(default=None, min_length=1),
+    after_cursor: int = Query(default=0, ge=0),
+    limit: int = Query(default=200, ge=1, le=2000),
+    session_id: str | None = Query(default=None, min_length=1),
+):
+    """Poll in ingestion order; pass next_cursor and session_id on the next request."""
+    try:
+        return store.recent(node_id, after_cursor, limit, session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

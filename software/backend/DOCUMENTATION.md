@@ -80,3 +80,11 @@ Check `software/backend/data/<session>/<node_id>.csv` for stored packets.
 ### Notes
 
 The replayer converts complex CSI samples into interleaved signed integer real/imaginary values compatible with schema version 0.1. The replay rate is configurable and does not represent the original measurement sampling frequency. Activity labels are available in the source dataset but are not included in the ingestion packet schema.
+
+## Live dashboard retrieval
+
+The backend also provides GET /packets/recent with bounded, session-aware
+ingestion cursors. See [dashboard documentation](../dashboard/DOCUMENTATION.md)
+for its API contract, polling, calibration and full launch commands. Use a single
+backend worker because live state is process-local. CSV storage and packet schema
+are unchanged.
