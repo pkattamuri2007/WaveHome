@@ -65,10 +65,13 @@ def load_session(archive: zipfile.ZipFile, session: str):
 
 
 def packet_from_row(row, seq: int, rate: float, node_id: str, rf: dict) -> dict:
-    """Produce [real0, imag0, real1, imag1, ...], enforcing signed int8 bounds."""
+    """Produce [imag0, real0, imag1, real1, ...], enforcing signed int8 bounds.
+
+    Same order as the ESP32 CSI buffer, fake_sender.py and the stored CSV.
+    """
     interleaved = np.empty(row.size * 2, dtype=np.float64)
-    interleaved[::2] = row.real
-    interleaved[1::2] = row.imag
+    interleaved[::2] = row.imag
+    interleaved[1::2] = row.real
     if np.any((interleaved < -128) | (interleaved > 127)):
         raise ValueError(f'CSI value outside [-128, 127] in replay row {seq}; refusing to clip')
     if not np.all(interleaved == np.rint(interleaved)):
